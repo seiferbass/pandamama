@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+<title>員工排班表</title>
+<style>
+  :root{
+    /* 色票 */
+    --ink:#20242e;
+    --ink-soft:#5b616e;
+    --ink-faint:#9aa0ab;
+    --paper:#eef0f4;
+    --surface:#ffffff;
+    --line:#e4e6ec;
+    --line-mid:#d2d5dd;
+    --accent:#d7263d;        /* 麻辣紅：主要動作 / 今天 */
+    --accent-ink:#a71227;
+
+    /* 四種狀態 */
+    --off-solid:#e5484d;  --off-tint:#fdecec;  --off-ink:#b42318;
+    --am-solid:#f5a524;   --am-tint:#fff4e0;    --am-ink:#95590a;
+    --pm-solid:#5b6bff;   --pm-tint:#edeffe;    --pm-ink:#3538cd;
+    --full-solid:#17a34a; --full-tint:#e7f7ec;  --full-ink:#0f7a37;
+
+    --wknd:#f6f2ee;        /* 週末底色 */
+    --cell:44px;           /* 格子尺寸 */
+    --name-w:88px;
+
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",system-ui,sans-serif;
+  }
+
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0}
+  body{
+    font-family:var(--sans);
+    color:var(--ink);
+    background:var(--paper);
+    line-height:1.4;
+    -webkit-text-size-adjust:100%;
+  }
+  button{font-family:inherit}
+
+  /* ── 頁首 ── */
+  .topbar{
+    position:sticky;top:0;z-index:60;
+    background:var(--surface);
+    border-bottom:1px solid var(--line);
+    padding:calc(env(safe-area-inset-top) + 10px) 14px 10px;
+  }
+  .brand{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+  .brand h1{font-size:18px;letter-spacing:.06em;margin:0;font-weight:800}
+  .brand .sub{font-size:11.5px;color:var(--ink-faint);letter-spacing:.14em}
+
+  .monthnav{display:flex;align-items:center;gap:8px;margin-top:9px}
+  .navbtn{
+    width:38px;height:38px;flex:0 0 auto;border:1px solid var(--line-mid);
+    background:var(--surface);border-radius:10px;font-size:17px;color:var(--ink);
+    display:grid;place-items:center;cursor:pointer;
+  }
+  .navbtn:active{background:var(--paper)}
+  .monthlabel{
+    flex:1;text-align:center;font-weight:700;font-size:16px;letter-spacing:.03em;
+    display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;
+  }
+  .monthlabel .num{font-family:var(--mono);font-weight:600}
+  .monthlabel select{
+    font:inherit;color:inherit;border:1px solid var(--line);background:var(--surface);
+    border-radius:8px;padding:5px 6px;-webkit-appearance:none;appearance:none;text-align:center;
+  }
+  .today-btn{
+    flex:0 0 auto;height:38px;padding:0 12px;border:1px solid var(--line-mid);
+    background:var(--surface);border-radius:10px;font-size:13px;font-weight:600;color:var(--ink-soft);cursor:pointer;
+  }
+  .today-btn:active{background:var(--paper)}
+
+  /* ── 工具列（筆刷 + 動作）── */
+  .toolbar{
+    position:sticky;top:0;z-index:55;
+    background:var(--paper);
+    padding:10px 14px;
+    display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+    border-bottom:1px solid var(--line);
+  }
+  .brushset{display:flex;gap:6px;flex-wrap:wrap;flex:1;min-width:0}
+  .brush{
+    display:inline-flex;align-items:center;gap:6px;
+    height:40px;padding:0 12px 0 10px;border-radius:999px;cursor:pointer;
+    border:1.5px solid var(--line-mid);background:var(--surface);
+    font-size:14px;font-weight:600;color:var(--ink-soft);
+    transition:transform .06s ease;
+  }
+  .brush .dot{width:16px;height:16px;border-radius:5px;display:grid;place-items:center;
+    color:#fff;font-size:11px;font-weight:800;line-height:1}
+  .brush.off  .dot{background:var(--off-solid)}
+  .brush.am   .dot{background:var(--am-solid)}
+  .brush.pm   .dot{background:var(--pm-solid)}
+  .brush.full .dot{background:var(--full-solid)}
+  .brush.erase .dot{background:var(--ink-faint);font-size:13px}
+  .brush[aria-pressed="true"]{color:var(--ink);border-color:var(--ink);
+    box-shadow:0 0 0 3px rgba(32,36,46,.08)}
+  .brush:active{transform:scale(.96)}
+
+  .actions{display:flex;gap:6px}
+  .abtn{
+    width:40px;height:40px;border-radius:11px;border:1.5px solid var(--line-mid);
+    background:var(--surface);cursor:pointer;display:grid;place-items:center;color:var(--ink-soft)}
+  .abtn:active{background:var(--paper)}
+  .abtn svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;
+    stroke-linecap:round;stroke-linejoin:round}
+
+  /* ── 表格 ── */
+  .grid-wrap{
+    overflow:auto;-webkit-overflow-scrolling:touch;
+    background:var(--surface);
+    max-height:calc(100dvh - 210px);
+    border-bottom:1px solid var(--line);
+  }
+  table.sched{border-collapse:separate;border-spacing:0;width:max-content}
+  .sched th,.sched td{border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+
+  /* 角落 + 表頭 */
+  .sched thead th{
+    position:sticky;top:0;z-index:20;background:var(--surface);
+    text-align:center;font-weight:600;color:var(--ink-soft);
+  }
+  .sched thead .wk{font-size:12px;padding:6px 0 2px;height:26px}
+  .sched thead .dy{font-family:var(--mono);font-size:14px;font-weight:600;color:var(--ink);
+    padding:0 0 7px;height:26px}
+  .corner{
+    position:sticky;left:0;top:0;z-index:30;background:var(--surface);
+    width:var(--name-w);min-width:var(--name-w);
+    vertical-align:bottom;text-align:left;padding:6px 10px 8px;
+  }
+  .corner .ttl{font-size:12px;font-weight:700;color:var(--ink)}
+  .corner .hint{font-size:10px;color:var(--ink-faint);margin-top:1px}
+
+  /* 名字欄（黏左） */
+  .namecell{
+    position:sticky;left:0;z-index:15;background:var(--surface);
+    width:var(--name-w);min-width:var(--name-w);
+    padding:0 10px;font-weight:600;font-size:14.5px;color:var(--ink);
+    height:var(--cell);
+  }
+  .namecell .badge{display:block;font-size:10px;font-weight:600;color:var(--off-ink);margin-top:-2px}
+
+  /* 分隔列 */
+  tr.divider td,tr.divider th{height:12px;background:var(--paper);border-bottom:1px solid var(--line-mid)}
+  tr.divider .namecell{background:var(--paper)}
+
+  /* 週末底色（表頭 + 內容） */
+  .sched th.wknd,.sched td.wknd{background:var(--wknd)}
+  /* 今天欄 */
+  .sched th.today{color:var(--accent);position:sticky;top:0}
+  .sched th.today.dy{box-shadow:inset 0 -3px 0 var(--accent)}
+  .sched td.todaycol{box-shadow:inset 1px 0 0 rgba(215,38,61,.28),inset -1px 0 0 rgba(215,38,61,.28)}
+
+  /* 資料格 */
+  td.cell{
+    width:var(--cell);min-width:var(--cell);height:var(--cell);
+    text-align:center;cursor:pointer;padding:0;position:relative;user-select:none;
+    font-size:17px;font-weight:700;color:var(--ink-faint);
+  }
+  td.cell:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;z-index:5}
+  td.cell .mark{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;
+    font-size:16px;line-height:1;margin:0 auto}
+  td.cell.off   .mark{background:var(--off-tint); color:var(--off-ink)}
+  td.cell.am    .mark{background:var(--am-tint);  color:var(--am-ink)}
+  td.cell.pm    .mark{background:var(--pm-tint);  color:var(--pm-ink)}
+  td.cell.full  .mark{background:var(--full-tint);color:var(--full-ink)}
+  @media (hover:hover){ td.cell:hover{background:rgba(32,36,46,.035)} }
+  td.cell:active .mark{transform:scale(.9)}
+  .mark{transition:transform .07s ease}
+
+  /* ── 圖例 + 統計 + 匯出 區塊 ── */
+  .panel{padding:16px 14px 8px}
+  .panel h2{font-size:12px;letter-spacing:.14em;color:var(--ink-faint);
+    font-weight:700;margin:0 0 10px;text-transform:uppercase}
+
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:22px}
+  .legend .item{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-soft)}
+  .legend .sw{width:20px;height:20px;border-radius:6px;display:grid;place-items:center;
+    font-size:12px;font-weight:800;color:#fff}
+  .legend .off .sw{background:var(--off-solid)} .legend .am .sw{background:var(--am-solid)}
+  .legend .pm .sw{background:var(--pm-solid)}   .legend .full .sw{background:var(--full-solid)}
+
+  .stat-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:22px}
+  table.stat{border-collapse:collapse;width:100%;min-width:340px;font-size:13.5px}
+  .stat th,.stat td{padding:9px 6px;text-align:center;border-bottom:1px solid var(--line)}
+  .stat th{font-weight:700;color:var(--ink-soft);font-size:12px;background:var(--surface)}
+  .stat td:first-child,.stat th:first-child{text-align:left;padding-left:12px;font-weight:600}
+  .stat tbody tr:last-child td{border-bottom:none}
+  .stat .num{font-family:var(--mono);font-weight:600}
+  .stat .z{color:var(--ink-faint)}
+  .stat td.c-off .num{color:var(--off-ink)} .stat td.c-am .num{color:var(--am-ink)}
+  .stat td.c-pm .num{color:var(--pm-ink)}   .stat td.c-full .num{color:var(--full-ink)}
+
+  .filerow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:34px}
+  .fbtn{flex:1;min-width:132px;height:46px;border-radius:12px;border:1.5px solid var(--line-mid);
+    background:var(--surface);font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px}
+  .fbtn:active{background:var(--paper)}
+  .fbtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;
+    stroke-linecap:round;stroke-linejoin:round}
+  .foot{color:var(--ink-faint);font-size:11.5px;text-align:center;padding:0 14px 40px}
+
+  /* ── 管理員工彈窗 ── */
+  .overlay{position:fixed;inset:0;z-index:100;background:rgba(24,26,32,.44);
+    display:none;align-items:flex-end;justify-content:center}
+  .overlay.open{display:flex}
+  .sheet{background:var(--surface);width:100%;max-width:520px;
+    border-radius:20px 20px 0 0;max-height:86dvh;display:flex;flex-direction:column;
+    box-shadow:0 -8px 40px rgba(0,0,0,.2)}
+  .sheet-head{display:flex;align-items:center;justify-content:space-between;
+    padding:16px 16px 12px;border-bottom:1px solid var(--line)}
+  .sheet-head h3{margin:0;font-size:16px;font-weight:800;letter-spacing:.03em}
+  .sheet-head .close{width:34px;height:34px;border:none;background:var(--paper);border-radius:9px;
+    font-size:18px;color:var(--ink-soft);cursor:pointer}
+  .sheet-body{overflow:auto;padding:8px 12px 4px;-webkit-overflow-scrolling:touch}
+
+  .prow{display:flex;align-items:center;gap:8px;padding:7px 4px;border-bottom:1px solid var(--line)}
+  .prow.dvd{color:var(--ink-faint);font-style:italic;justify-content:space-between}
+  .prow input.rn{flex:1;min-width:0;font:inherit;font-size:15px;font-weight:600;color:var(--ink);
+    border:1px solid transparent;border-radius:8px;padding:8px 8px;background:var(--paper)}
+  .prow input.rn:focus{outline:none;border-color:var(--ink);background:var(--surface)}
+  .mini{width:34px;height:34px;flex:0 0 auto;border:1px solid var(--line-mid);background:var(--surface);
+    border-radius:8px;cursor:pointer;display:grid;place-items:center;color:var(--ink-soft);font-size:15px}
+  .mini:active{background:var(--paper)}
+  .mini.del{color:var(--off-ink);border-color:#f3cdcd}
+  .mini svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+  .sheet-foot{padding:12px;border-top:1px solid var(--line);display:flex;gap:8px;
+    padding-bottom:calc(env(safe-area-inset-bottom) + 12px)}
+  .sheet-foot button{flex:1;height:48px;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;border:1.5px solid var(--line-mid);background:var(--surface);color:var(--ink)}
+  .sheet-foot .add{border-color:var(--accent);color:#fff;background:var(--accent)}
+  .sheet-foot .add:active{filter:brightness(.94)}
+  .sheet-foot .adddvd{color:var(--ink-soft)}
+
+  .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 22px);transform:translateX(-50%) translateY(20px);
+    background:var(--ink);color:#fff;padding:11px 18px;border-radius:999px;font-size:13.5px;font-weight:600;
+    opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:200;white-space:nowrap}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+  /* ── 列印 / 存 PDF ── */
+  @media print{
+    @page{size:landscape;margin:10mm}
+    body{background:#fff}
+    .topbar{position:static;border:none;padding:0 0 4px}
+    .brand h1{font-size:16px}
+    .monthnav .navbtn,.today-btn,.monthlabel select{display:none}
+    .monthlabel{justify-content:flex-start;font-size:14px}
+    .toolbar,.filerow,.foot,.overlay,.toast{display:none!important}
+    .panel{padding:10px 0}
+    .grid-wrap{max-height:none;overflow:visible;border:none}
+    .sched thead th,.namecell,.corner{position:static!important;box-shadow:none!important}
+    .sched th,.sched td{border-color:#ccc!important}
+    td.cell,.namecell{height:30px}
+    td.cell .mark{width:24px;height:24px;font-size:13px}
+    *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .legend{margin-bottom:8px}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <h1>員工排班表</h1>
+    <span class="sub" id="brandSub">PANDA-MAMA · 麻辣干鍋</span>
+  </div>
+  <div class="monthnav">
+    <button class="navbtn" id="prevM" aria-label="上個月">‹</button>
+    <div class="monthlabel">
+      <select id="yearSel" aria-label="選擇年份"></select>
+      <select id="monthSel" aria-label="選擇月份"></select>
+    </div>
+    <button class="navbtn" id="nextM" aria-label="下個月">›</button>
+    <button class="today-btn" id="todayBtn">今天</button>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="brushset" id="brushSet">
+    <button class="brush off"   data-brush="off"   aria-pressed="true"><span class="dot">休</span>休假</button>
+    <button class="brush am"    data-brush="am"    aria-pressed="false"><span class="dot">早</span>早班</button>
+    <button class="brush pm"    data-brush="pm"    aria-pressed="false"><span class="dot">晚</span>晚班</button>
+    <button class="brush full"  data-brush="full"  aria-pressed="false"><span class="dot">全</span>全天</button>
+    <button class="brush erase" data-brush="erase" aria-pressed="false"><span class="dot">⌫</span>清除</button>
+  </div>
+  <div class="actions">
+    <button class="abtn" id="manageBtn" aria-label="管理員工" title="管理員工">
+      <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 8h5M18.5 5.5v5"/></svg>
+    </button>
+  </div>
+</div>
+
+<div class="grid-wrap" id="gridWrap">
+  <table class="sched" id="sched"></table>
+</div>
+
+<section class="panel">
+  <h2>圖例</h2>
+  <div class="legend">
+    <div class="item off"><span class="sw">休</span>休假</div>
+    <div class="item am"><span class="sw">早</span>早班</div>
+    <div class="item pm"><span class="sw">晚</span>晚班</div>
+    <div class="item full"><span class="sw">全</span>全天</div>
+    <div class="item"><span style="width:20px;height:20px;border-radius:6px;border:1px solid var(--line-mid);display:inline-block"></span>正常班（空白）</div>
+  </div>
+
+  <h2>本月統計</h2>
+  <div class="stat-wrap">
+    <table class="stat" id="statTable"></table>
+  </div>
+
+  <h2>資料</h2>
+  <div class="filerow">
+    <button class="fbtn" id="printBtn"><svg viewBox="0 0 24 24"><path d="M6 9V4h12v5"/><rect x="6" y="13" width="12" height="7"/><path d="M6 17H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2"/></svg>列印 / 存 PDF</button>
+    <button class="fbtn" id="csvBtn"><svg viewBox="0 0 24 24"><path d="M4 4h11l5 5v11H4z"/><path d="M15 4v5h5"/><path d="M8 15h8M8 12h8"/></svg>匯出 Excel(CSV)</button>
+    <button class="fbtn" id="expBtn"><svg viewBox="0 0 24 24"><path d="M12 3v11"/><path d="M8 10l4 4 4-4"/><path d="M4 19h16"/></svg>備份檔</button>
+    <button class="fbtn" id="impBtn"><svg viewBox="0 0 24 24"><path d="M12 14V3"/><path d="M8 7l4-4 4 4"/><path d="M4 19h16"/></svg>還原備份</button>
+    <input type="file" id="impFile" accept="application/json,.json" hidden>
+  </div>
+  <p class="foot">資料自動儲存在此裝置的瀏覽器中，不會上傳到任何伺服器。換手機或清除瀏覽資料前，請先用「備份檔」保存。</p>
+</section>
+
+<!-- 管理員工 -->
+<div class="overlay" id="overlay">
+  <div class="sheet" role="dialog" aria-label="管理員工">
+    <div class="sheet-head">
+      <h3>管理員工</h3>
+      <button class="close" id="closeSheet" aria-label="關閉">✕</button>
+    </div>
+    <div class="sheet-body" id="peopleList"></div>
+    <div class="sheet-foot">
+      <button class="adddvd" id="addDivider">＋ 分隔線</button>
+      <button class="add" id="addPerson">＋ 新增員工</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+/* ===== 設定 ===== */
+const STATUSES = {
+  off:  {label:"休"}, am: {label:"早"}, pm: {label:"晚"}, full: {label:"全"}
+};
+const WK = ["日","一","二","三","四","五","六"];
+const STORE_KEY = "panda-shift-scheduler-v1";
+
+/* ===== 狀態 ===== */
+let state = null;      // {version, brandSub, people:[{id,name}|{id,type:'divider'}], data:{'Y-M':{pid:{day:status}}}}
+let brush = "off";
+const now = new Date();
+let curY = now.getFullYear();
+let curM = now.getMonth() + 1;   // 1-12
+
+/* ===== 工具 ===== */
+const $ = s => document.querySelector(s);
+const uid = () => "p" + Math.random().toString(36).slice(2, 8) + Date.now().toString(36).slice(-3);
+const daysInMonth = (y, m) => new Date(y, m, 0).getDate();
+const mKey = (y, m) => y + "-" + m;
+const pad2 = n => String(n).padStart(2, "0");
+
+function defaultState(){
+  const names1 = ["阿奎","睿函","阿文","威武","seifer"];
+  const names2 = ["凱捷","虹錦","阿德","阿河","阿恩"];
+  const people = [];
+  names1.forEach(n => people.push({id:uid(), name:n}));
+  people.push({id:uid(), type:"divider"});
+  names2.forEach(n => people.push({id:uid(), name:n}));
+  return {version:1, brandSub:"PANDA-MAMA · 麻辣干鍋", people, data:{}};
+}
+
+function load(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw){
+      const p = JSON.parse(raw);
+      if(p && Array.isArray(p.people)){ state = p; state.data = state.data || {}; return; }
+    }
+  }catch(e){ /* 忽略：可能在無儲存權限環境 */ }
+  state = defaultState();
+}
+let saveTimer = null;
+function save(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){}
+  }, 250);
+}
+
+/* ===== 讀寫格子 ===== */
+function bucket(y, m){
+  const k = mKey(y, m);
+  if(!state.data[k]) state.data[k] = {};
+  return state.data[k];
+}
+function getCell(pid, day){
+  const b = state.data[mKey(curY, curM)];
+  return b && b[pid] ? b[pid][day] : undefined;
+}
+function setCell(pid, day, status){
+  const b = bucket(curY, curM);
+  if(!b[pid]) b[pid] = {};
+  if(status) b[pid][day] = status;
+  else { delete b[pid][day]; if(Object.keys(b[pid]).length === 0) delete b[pid]; }
+  save();
+}
+
+/* ===== 建表 ===== */
+function buildGrid(){
+  const table = $("#sched");
+  const dim = daysInMonth(curY, curM);
+  const isThisMonth = (curY === now.getFullYear() && curM === now.getMonth() + 1);
+  const todayD = now.getDate();
+
+  // 表頭
+  const wkRow = [], dyRow = [];
+  wkRow.push('<th class="corner" rowspan="2"><span class="ttl">姓名</span><span class="hint">點格設定</span></th>');
+  for(let d = 1; d <= dim; d++){
+    const wd = new Date(curY, curM - 1, d).getDay();
+    const wknd = (wd === 0 || wd === 6) ? " wknd" : "";
+    const today = (isThisMonth && d === todayD);
+    wkRow.push(`<th class="wk${wknd}${today ? " today" : ""}">${WK[wd]}</th>`);
+    dyRow.push(`<th class="dy${wknd}${today ? " today" : ""}">${d}</th>`);
+  }
+
+  // 內容
+  let body = "";
+  for(const p of state.people){
+    if(p.type === "divider"){
+      body += `<tr class="divider"><th class="namecell"></th>` +
+              `<td colspan="${dim}"></td></tr>`;
+      continue;
+    }
+    let row = `<tr data-pid="${p.id}"><th class="namecell">${escapeHtml(p.name)}</th>`;
+    for(let d = 1; d <= dim; d++){
+      const wd = new Date(curY, curM - 1, d).getDay();
+      const wknd = (wd === 0 || wd === 6) ? " wknd" : "";
+      const today = (isThisMonth && d === todayD) ? " todaycol" : "";
+      const st = getCell(p.id, d);
+      const cls = st ? " " + st : "";
+      const mark = st ? `<span class="mark">${STATUSES[st].label}</span>` : "";
+      row += `<td class="cell${cls}${wknd}${today}" data-pid="${p.id}" data-day="${d}" tabindex="0" role="button" aria-label="${p.name} ${curM}月${d}日">${mark}</td>`;
+    }
+    row += "</tr>";
+    body += row;
+  }
+
+  table.innerHTML =
+    `<thead><tr>${wkRow.join("")}</tr><tr>${dyRow.join("")}</tr></thead>` +
+    `<tbody>${body}</tbody>`;
+}
+
+function paintCell(td){
+  const pid = td.dataset.pid, day = +td.dataset.day;
+  const cur = getCell(pid, day);
+  if(brush === "erase"){
+    setCell(pid, day, null);
+    td.className = td.className.replace(/\b(off|am|pm|full)\b/g, "").replace(/\s+/g," ").trim();
+    td.innerHTML = "";
+  }else{
+    setCell(pid, day, brush);
+    td.classList.remove("off","am","pm","full");
+    td.classList.add(brush);
+    td.innerHTML = `<span class="mark">${STATUSES[brush].label}</span>`;
+  }
+  buildStats();
+}
+
+/* ===== 統計 ===== */
+function buildStats(){
+  const rows = ['<thead><tr><th>員工</th><th>休假</th><th>早班</th><th>晚班</th><th>全天</th></tr></thead>'];
+  let body = "";
+  for(const p of state.people){
+    if(p.type === "divider") continue;
+    const b = state.data[mKey(curY, curM)];
+    const rec = (b && b[p.id]) ? b[p.id] : {};
+    const c = {off:0, am:0, pm:0, full:0};
+    Object.values(rec).forEach(s => { if(c[s] !== undefined) c[s]++; });
+    const cell = (k, cls) => `<td class="${cls}"><span class="num ${c[k] ? "" : "z"}">${c[k]}</span></td>`;
+    body += `<tr><td>${escapeHtml(p.name)}</td>${cell("off","c-off")}${cell("am","c-am")}${cell("pm","c-pm")}${cell("full","c-full")}</tr>`;
+  }
+  $("#statTable").innerHTML = rows[0] + "<tbody>" + body + "</tbody>";
+}
+
+/* ===== 月份控制 ===== */
+function fillMonthSelectors(){
+  const ys = $("#yearSel"), ms = $("#monthSel");
+  ys.innerHTML = ""; ms.innerHTML = "";
+  const base = now.getFullYear();
+  for(let y = base - 2; y <= base + 3; y++){
+    ys.innerHTML += `<option value="${y}">${y} 年</option>`;
+  }
+  for(let m = 1; m <= 12; m++){
+    ms.innerHTML += `<option value="${m}">${m} 月</option>`;
+  }
+}
+function syncSelectors(){ $("#yearSel").value = curY; $("#monthSel").value = curM; }
+function goMonth(y, m){
+  if(m < 1){ m = 12; y--; } if(m > 12){ m = 1; y++; }
+  curY = y; curM = m; syncSelectors(); render();
+}
+
+function render(){ buildGrid(); buildStats(); }
+
+/* ===== 管理員工 ===== */
+function openManage(){ renderPeople(); $("#overlay").classList.add("open"); }
+function closeManage(){ $("#overlay").classList.remove("open"); render(); }
+function renderPeople(){
+  const list = $("#peopleList");
+  list.innerHTML = "";
+  state.people.forEach((p, i) => {
+    const row = document.createElement("div");
+    if(p.type === "divider"){
+      row.className = "prow dvd";
+      row.innerHTML = `<span>— 分組分隔線 —</span>`;
+    }else{
+      row.className = "prow";
+      row.innerHTML = `<input class="rn" value="${escapeAttr(p.name)}" placeholder="員工姓名">`;
+      row.querySelector("input").addEventListener("input", e => { p.name = e.target.value; save(); });
+    }
+    const up = miniBtn(upSvg(), () => moveItem(i, -1));
+    const dn = miniBtn(downSvg(), () => moveItem(i, 1));
+    const del = miniBtn(delSvg(), () => removeItem(i)); del.classList.add("del");
+    if(i === 0) up.disabled = true, up.style.opacity = .35;
+    if(i === state.people.length - 1) dn.disabled = true, dn.style.opacity = .35;
+    row.appendChild(up); row.appendChild(dn); row.appendChild(del);
+    list.appendChild(row);
+  });
+}
+function miniBtn(svg, fn){
+  const b = document.createElement("button");
+  b.className = "mini"; b.innerHTML = svg;
+  b.addEventListener("click", fn);
+  return b;
+}
+function moveItem(i, dir){
+  const j = i + dir;
+  if(j < 0 || j >= state.people.length) return;
+  const arr = state.people;
+  [arr[i], arr[j]] = [arr[j], arr[i]];
+  save(); renderPeople();
+}
+function removeItem(i){
+  const p = state.people[i];
+  if(p.type !== "divider" && !confirm(`確定刪除「${p.name}」？此員工在所有月份的排班紀錄也會一併移除。`)) return;
+  if(p.type !== "divider"){
+    // 清掉所有月份中該員工的資料
+    Object.values(state.data).forEach(b => { delete b[p.id]; });
+  }
+  state.people.splice(i, 1);
+  save(); renderPeople();
+}
+function addPerson(){
+  state.people.push({id:uid(), name:"新員工"});
+  save(); renderPeople();
+  const inputs = $("#peopleList").querySelectorAll("input.rn");
+  const last = inputs[inputs.length - 1];
+  if(last){ last.focus(); last.select(); last.scrollIntoView({block:"center"}); }
+}
+function addDivider(){ state.people.push({id:uid(), type:"divider"}); save(); renderPeople(); }
+
+/* ===== 匯出 / 匯入 ===== */
+function download(name, content, mime){
+  const blob = new Blob([content], {type:mime});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+function exportJSON(){
+  const d = new Date();
+  download(`排班表備份_${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}.json`,
+    JSON.stringify(state, null, 2), "application/json");
+  toast("已下載備份檔");
+}
+function exportCSV(){
+  const dim = daysInMonth(curY, curM);
+  let head = ["員工"];
+  for(let d = 1; d <= dim; d++){ head.push(`${d}(${WK[new Date(curY,curM-1,d).getDay()]})`); }
+  const lines = [head.join(",")];
+  for(const p of state.people){
+    if(p.type === "divider"){ lines.push(""); continue; }
+    const cells = [csvSafe(p.name)];
+    for(let d = 1; d <= dim; d++){
+      const s = getCell(p.id, d);
+      cells.push(s ? STATUSES[s].label : "");
+    }
+    lines.push(cells.join(","));
+  }
+  const bom = "\uFEFF";
+  download(`排班表_${curY}-${pad2(curM)}.csv`, bom + lines.join("\r\n"), "text/csv;charset=utf-8");
+  toast("已匯出 CSV，可用 Excel 開啟");
+}
+function importJSON(file){
+  const r = new FileReader();
+  r.onload = () => {
+    try{
+      const p = JSON.parse(r.result);
+      if(!p || !Array.isArray(p.people)) throw 0;
+      if(!confirm("還原備份會覆蓋目前所有排班資料，確定繼續？")) return;
+      state = {version:1, brandSub:p.brandSub || state.brandSub, people:p.people, data:p.data || {}};
+      $("#brandSub").textContent = state.brandSub;
+      save(); render(); toast("已還原備份");
+    }catch(e){ alert("檔案格式不正確，請選擇本工具匯出的備份檔。"); }
+  };
+  r.readAsText(file);
+}
+
+/* ===== 小工具 ===== */
+function escapeHtml(s){ return String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+function escapeAttr(s){ return String(s).replace(/"/g, "&quot;"); }
+function csvSafe(s){ return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+let toastTimer = null;
+function toast(msg){
+  const t = $("#toast"); t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove("show"), 1900);
+}
+const upSvg   = () => '<svg viewBox="0 0 24 24"><path d="M12 19V6M6 12l6-6 6 6"/></svg>';
+const downSvg = () => '<svg viewBox="0 0 24 24"><path d="M12 5v13M6 12l6 6 6-6"/></svg>';
+const delSvg  = () => '<svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></svg>';
+
+/* ===== 事件 ===== */
+function bindEvents(){
+  // 筆刷
+  $("#brushSet").addEventListener("click", e => {
+    const b = e.target.closest(".brush"); if(!b) return;
+    brush = b.dataset.brush;
+    $("#brushSet").querySelectorAll(".brush").forEach(x =>
+      x.setAttribute("aria-pressed", x === b ? "true" : "false"));
+  });
+
+  // 點格塗色（含鍵盤）
+  const tbody = $("#sched");
+  tbody.addEventListener("click", e => {
+    const td = e.target.closest("td.cell"); if(td) paintCell(td);
+  });
+  tbody.addEventListener("keydown", e => {
+    if(e.key === "Enter" || e.key === " "){
+      const td = e.target.closest("td.cell");
+      if(td){ e.preventDefault(); paintCell(td); }
+    }
+  });
+  // 滑鼠拖曳連續塗色（觸控維持捲動，不啟用）
+  let painting = false;
+  tbody.addEventListener("pointerdown", e => {
+    if(e.pointerType !== "mouse") return;
+    const td = e.target.closest("td.cell"); if(!td) return;
+    painting = true; paintCell(td); e.preventDefault();
+  });
+  tbody.addEventListener("pointerover", e => {
+    if(!painting) return;
+    const td = e.target.closest("td.cell"); if(td) paintCell(td);
+  });
+  window.addEventListener("pointerup", () => painting = false);
+
+  // 月份
+  $("#prevM").addEventListener("click", () => goMonth(curY, curM - 1));
+  $("#nextM").addEventListener("click", () => goMonth(curY, curM + 1));
+  $("#todayBtn").addEventListener("click", () => goMonth(now.getFullYear(), now.getMonth() + 1));
+  $("#yearSel").addEventListener("change", e => goMonth(+e.target.value, curM));
+  $("#monthSel").addEventListener("change", e => goMonth(curY, +e.target.value));
+
+  // 管理
+  $("#manageBtn").addEventListener("click", openManage);
+  $("#closeSheet").addEventListener("click", closeManage);
+  $("#overlay").addEventListener("click", e => { if(e.target.id === "overlay") closeManage(); });
+  $("#addPerson").addEventListener("click", addPerson);
+  $("#addDivider").addEventListener("click", addDivider);
+
+  // 資料
+  $("#printBtn").addEventListener("click", () => window.print());
+  $("#csvBtn").addEventListener("click", exportCSV);
+  $("#expBtn").addEventListener("click", exportJSON);
+  $("#impBtn").addEventListener("click", () => $("#impFile").click());
+  $("#impFile").addEventListener("change", e => { if(e.target.files[0]) importJSON(e.target.files[0]); e.target.value = ""; });
+}
+
+/* ===== 啟動 ===== */
+function init(){
+  load();
+  $("#brandSub").textContent = state.brandSub;
+  fillMonthSelectors();
+  syncSelectors();
+  bindEvents();
+  render();
+}
+init();
+</script>
+</body>
+</html>
