@@ -52,6 +52,19 @@
   .brand{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
   .brand h1{font-size:18px;letter-spacing:.06em;margin:0;font-weight:800}
   .brand .sub{font-size:11.5px;color:var(--ink-faint);letter-spacing:.14em}
+  .cloudpill{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;
+    border-radius:999px;border:1px solid var(--line-mid);background:var(--surface);
+    font-size:11.5px;font-weight:600;color:var(--ink-soft);cursor:pointer;line-height:1}
+  .cloudpill .d{width:7px;height:7px;border-radius:50%;background:var(--ink-faint)}
+  .cloudpill.pill-off{color:var(--ink-faint)}
+  .cloudpill.pill-off .d{background:#b9bec8}
+  .cloudpill.pill-wait{color:#8a5a00;border-color:#f0d9a8}
+  .cloudpill.pill-wait .d{background:var(--am-solid);animation:pulse 1s infinite}
+  .cloudpill.pill-ok{color:var(--full-ink);border-color:#bfe6cd}
+  .cloudpill.pill-ok .d{background:var(--full-solid)}
+  .cloudpill.pill-err{color:var(--off-ink);border-color:#f3cdcd}
+  .cloudpill.pill-err .d{background:var(--off-solid)}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
   .monthnav{display:flex;align-items:center;gap:8px;margin-top:9px}
   .navbtn{
@@ -201,6 +214,8 @@
     background:var(--surface);font-size:14px;font-weight:600;color:var(--ink);cursor:pointer;
     display:flex;align-items:center;justify-content:center;gap:8px}
   .fbtn:active{background:var(--paper)}
+  .fbtn.primary{background:var(--accent);border-color:var(--accent);color:#fff;flex:2}
+  .fbtn.primary:active{filter:brightness(.93);background:var(--accent)}
   .fbtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;
     stroke-linecap:round;stroke-linejoin:round}
   .foot{color:var(--ink-faint);font-size:11.5px;text-align:center;padding:0 14px 40px}
@@ -218,6 +233,17 @@
   .sheet-head .close{width:34px;height:34px;border:none;background:var(--paper);border-radius:9px;
     font-size:18px;color:var(--ink-soft);cursor:pointer}
   .sheet-body{overflow:auto;padding:8px 12px 4px;-webkit-overflow-scrolling:touch}
+  .cloudnote{font-size:13px;color:var(--ink-soft);line-height:1.6;margin:6px 4px 12px}
+  .cloudnote.sm{font-size:11.5px;color:var(--ink-faint);margin-top:12px}
+  .steps{margin:0 0 12px;padding-left:20px}
+  .steps li{font-size:12.5px;color:var(--ink);line-height:1.7;margin-bottom:7px}
+  .rulebox{display:block;margin-top:5px;background:#1f2430;color:#e8eaf0;font-family:var(--mono);
+    font-size:12px;padding:8px 10px;border-radius:8px;white-space:pre-wrap;word-break:break-all}
+  code.rulebox{font-weight:400}
+  .cloudinput{width:100%;min-height:118px;font-family:var(--mono);font-size:12.5px;line-height:1.5;
+    border:1.5px solid var(--line-mid);border-radius:10px;padding:10px;resize:vertical;color:var(--ink);
+    background:var(--paper)}
+  .cloudinput:focus{outline:none;border-color:var(--ink);background:var(--surface)}
 
   .prow{display:flex;align-items:center;gap:8px;padding:7px 4px;border-bottom:1px solid var(--line)}
   .prow.dvd{color:var(--ink-faint);font-style:italic;justify-content:space-between}
@@ -269,6 +295,7 @@
   <div class="brand">
     <h1>員工排班表</h1>
     <span class="sub" id="brandSub">PANDA-MAMA · 麻辣干鍋</span>
+    <button class="cloudpill pill-off" id="cloudPill" title="雲端同步設定"><span class="d"></span><span class="t">未設定雲端</span></button>
   </div>
   <div class="monthnav">
     <button class="navbtn" id="prevM" aria-label="上個月">‹</button>
@@ -290,6 +317,9 @@
     <button class="brush erase" data-brush="erase" aria-pressed="false"><span class="dot">⌫</span>清除</button>
   </div>
   <div class="actions">
+    <button class="abtn" id="cloudBtn" aria-label="雲端設定" title="雲端設定">
+      <svg viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.5-7.97A5.5 5.5 0 0 1 17 9.5a3.5 3.5 0 0 1 .5 6.98"/><path d="M12 12v6M9.5 15.5 12 18l2.5-2.5"/></svg>
+    </button>
     <button class="abtn" id="manageBtn" aria-label="管理員工" title="管理員工">
       <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 8h5M18.5 5.5v5"/></svg>
     </button>
@@ -315,7 +345,14 @@
     <table class="stat" id="statTable"></table>
   </div>
 
-  <h2>資料</h2>
+  <h2>分享給他人瀏覽</h2>
+  <div class="filerow" style="margin-bottom:12px">
+    <button class="fbtn primary" id="shareBtn"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="M8.3 10.7l7.4-4.4M8.3 13.3l7.4 4.4"/></svg>匯出部署檔（index.html）</button>
+    <button class="fbtn" id="reloadBtn"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-.8 3.5"/><path d="M20 4v5h-5"/></svg>還原成雲端內容</button>
+  </div>
+  <p class="foot" style="text-align:left;margin-bottom:28px"><b>設定雲端後（右上角雲朵圖示）＝即時同步</b>：只要用「匯出部署檔」上傳一次含設定的網頁，之後你在任何裝置修改都會即時存到雲端，別人開著網址就自動看到最新版，<b>不必再重傳</b>。<br>未設定雲端＝離線模式：部署檔會包含當下的班表，但每次改動仍需重新匯出、上傳覆蓋。</p>
+
+  <h2>其他</h2>
   <div class="filerow">
     <button class="fbtn" id="printBtn"><svg viewBox="0 0 24 24"><path d="M6 9V4h12v5"/><rect x="6" y="13" width="12" height="7"/><path d="M6 17H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2"/></svg>列印 / 存 PDF</button>
     <button class="fbtn" id="csvBtn"><svg viewBox="0 0 24 24"><path d="M4 4h11l5 5v11H4z"/><path d="M15 4v5h5"/><path d="M8 15h8M8 12h8"/></svg>匯出 Excel(CSV)</button>
@@ -323,7 +360,7 @@
     <button class="fbtn" id="impBtn"><svg viewBox="0 0 24 24"><path d="M12 14V3"/><path d="M8 7l4-4 4 4"/><path d="M4 19h16"/></svg>還原備份</button>
     <input type="file" id="impFile" accept="application/json,.json" hidden>
   </div>
-  <p class="foot">資料自動儲存在此裝置的瀏覽器中，不會上傳到任何伺服器。換手機或清除瀏覽資料前，請先用「備份檔」保存。</p>
+  <p class="foot">你正在編輯的資料自動存在此裝置的瀏覽器中，不會上傳。要正式分享請用上方「匯出分享網頁」。換手機或清除瀏覽資料前，可用「備份檔」另存一份。</p>
 </section>
 
 <!-- 管理員工 -->
@@ -341,7 +378,39 @@
   </div>
 </div>
 
+<!-- 雲端設定 -->
+<div class="overlay" id="cloudOverlay">
+  <div class="sheet" role="dialog" aria-label="雲端設定">
+    <div class="sheet-head">
+      <h3>雲端即時同步設定</h3>
+      <button class="close" id="closeCloud" aria-label="關閉">✕</button>
+    </div>
+    <div class="sheet-body">
+      <p class="cloudnote">設定後，排班會即時存到雲端；<b>部署一次</b>含設定的網頁，之後你在任何裝置修改，別人開著網頁就會自動更新，<b>不必再重傳</b>。</p>
+      <ol class="steps">
+        <li>到 <b>console.firebase.google.com</b> 用 Google 帳號建立一個專案（免費）。</li>
+        <li>左側選 <b>Build → Realtime Database → 建立資料庫</b>，位置隨意，規則先選「<b>以測試模式開始</b>」。</li>
+        <li>建好後，點資料庫規則頁，把規則改成下面這段並發佈（測試模式 30 天會失效，這段不會）：<br>
+          <code class="rulebox">{ "rules": { ".read": true, ".write": true } }</code></li>
+        <li>回專案設定（齒輪 → 專案設定 → 一般），在「你的應用程式」建立一個 <b>網頁應用程式 &lt;/&gt;</b>，複製它給的 <b>firebaseConfig</b> 整段。</li>
+        <li>把整段貼到下面欄位，按「儲存並連線」。</li>
+      </ol>
+      <textarea id="cloudInput" class="cloudinput" placeholder='貼上 firebaseConfig，例如：&#10;{&#10;  "apiKey": "...",&#10;  "authDomain": "xxx.firebaseapp.com",&#10;  "databaseURL": "https://xxx-default-rtdb.firebasedatabase.app",&#10;  "projectId": "xxx"&#10;}'></textarea>
+      <p class="cloudnote sm">留空欄位並儲存＝關閉雲端、回到離線模式。此設定只存在此裝置；正式讓大家看到，要按下方「匯出部署檔」再上傳一次。<br>提醒：上述規則為公開讀寫，適合內部小團隊；資料可隨時用「備份檔」另存。若日後需要更嚴格權限，可再加 Firebase 登入驗證。</p>
+    </div>
+    <div class="sheet-foot">
+      <button class="adddvd" id="clearCloud">清除設定</button>
+      <button class="add" id="saveCloud">儲存並連線</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
+
+<!-- 發佈資料：離線模式的初始/後備班表 -->
+<script id="embedded-data" type="application/json">null</script>
+<!-- 雲端設定：填入後即時同步；部署一次即可，之後修改免重傳 -->
+<script id="cloud-config" type="application/json">null</script>
 
 <script>
 "use strict";
@@ -352,6 +421,7 @@ const STATUSES = {
 };
 const WK = ["日","一","二","三","四","五","六"];
 const STORE_KEY = "panda-shift-scheduler-v1";
+const CLOUD_KEY = "panda-shift-cloud-cfg-v1";
 
 /* ===== 狀態 ===== */
 let state = null;      // {version, brandSub, people:[{id,name}|{id,type:'divider'}], data:{'Y-M':{pid:{day:status}}}}
@@ -368,7 +438,7 @@ const mKey = (y, m) => y + "-" + m;
 const pad2 = n => String(n).padStart(2, "0");
 
 function defaultState(){
-  const names1 = ["阿奎","睿函","阿文","威武","seifer"];
+  const names1 = ["阿奎","睿函","阿文","威武","阿祥"];
   const names2 = ["凱捷","虹錦","阿德","阿河","阿恩"];
   const people = [];
   names1.forEach(n => people.push({id:uid(), name:n}));
@@ -377,22 +447,164 @@ function defaultState(){
   return {version:1, brandSub:"PANDA-MAMA · 麻辣干鍋", people, data:{}};
 }
 
-function load(){
+// 讀取「打包在檔案裡」的已發佈資料
+function readEmbedded(){
+  const el = document.getElementById("embedded-data");
+  if(!el) return null;
+  try{
+    const d = JSON.parse(el.textContent);
+    return (d && Array.isArray(d.people)) ? d : null;
+  }catch(e){ return null; }
+}
+// 讀取此裝置瀏覽器暫存的資料
+function readLocal(){
   try{
     const raw = localStorage.getItem(STORE_KEY);
-    if(raw){
-      const p = JSON.parse(raw);
-      if(p && Array.isArray(p.people)){ state = p; state.data = state.data || {}; return; }
-    }
-  }catch(e){ /* 忽略：可能在無儲存權限環境 */ }
-  state = defaultState();
+    if(raw){ const p = JSON.parse(raw); if(p && Array.isArray(p.people)) return p; }
+  }catch(e){}
+  return null;
+}
+function load(){
+  const embedded = readEmbedded();
+  const local = readLocal();
+  const eT = embedded && embedded.updatedAt ? embedded.updatedAt : 0;
+  const lT = local && local.updatedAt ? local.updatedAt : 0;
+  // 已發佈內容較新（或本機沒資料）→ 用發佈內容，瀏覽者才看得到最新班表
+  if(embedded && (!local || eT >= lT)) state = embedded;
+  else if(local) state = local;
+  else state = embedded || defaultState();
+  state.data = state.data || {};
+  save(true);
+}
+// 強制載入檔案裡的發佈內容（給誤改的人還原用）
+function loadPublished(){
+  const embedded = readEmbedded();
+  if(!embedded){ toast("此檔尚未包含發佈內容"); return; }
+  if(!confirm("要用檔案內的發佈班表覆蓋目前畫面嗎？此裝置未上傳的修改會消失。")) return;
+  state = embedded; state.data = state.data || {};
+  save(true); render(); toast("已還原成發佈內容");
+}
+// 一鍵同步：雲端模式→強制拉取雲端；離線模式→還原檔案內發佈內容
+function reloadShared(){
+  if(cloud.enabled && cloud.ref){
+    if(!confirm("要用雲端目前的班表覆蓋此裝置畫面嗎？此裝置未同步的修改會消失。")) return;
+    cloud.ref.once("value").then(snap => {
+      const val = snap.val();
+      if(val && Array.isArray(val.people)){ applyRemote(val); toast("已同步雲端內容"); }
+      else toast("雲端目前沒有資料");
+    }).catch(e => setCloudStatus("error", (e && e.message) || "讀取失敗"));
+    return;
+  }
+  loadPublished();
 }
 let saveTimer = null;
-function save(){
+function cacheLocal(){ try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){} }
+function saveNow(){ state.updatedAt = Date.now(); cacheLocal(); }
+function save(skipStamp){
+  if(!skipStamp) state.updatedAt = Date.now();
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    try{ localStorage.setItem(STORE_KEY, JSON.stringify(state)); }catch(e){}
-  }, 250);
+  saveTimer = setTimeout(() => { cacheLocal(); cloudPush(); }, 300);
+}
+// 套用來自雲端/他人的資料（不重蓋時間戳，避免與雲端來回打架）
+function applyRemote(val){
+  state = val; state.data = state.data || {};
+  cacheLocal(); render();
+}
+
+/* ===== 雲端即時同步（Firebase Realtime Database）===== */
+let cloud = { enabled:false, ref:null, firstLoad:true };
+function setCloudStatus(kind, msg){
+  const el = document.getElementById("cloudPill"); if(!el) return;
+  const map = {
+    off:["未設定雲端","pill-off"], connecting:["雲端連線中…","pill-wait"],
+    connected:["雲端已連線","pill-ok"], error:["雲端錯誤","pill-err"]
+  };
+  const pair = map[kind] || map.off;
+  el.className = "cloudpill " + pair[1];
+  el.querySelector(".t").textContent = (kind === "error" && msg) ? "雲端錯誤" : pair[0];
+  el.title = msg ? ("雲端同步設定 · " + msg) : "雲端同步設定";
+  cloud.status = kind;
+}
+function getCloudConfig(){
+  const el = document.getElementById("cloud-config");
+  if(el){ try{ const j = JSON.parse(el.textContent); if(j && j.databaseURL) return j; }catch(e){} }
+  try{ const raw = localStorage.getItem(CLOUD_KEY); if(raw){ const p = JSON.parse(raw); if(p && p.databaseURL) return p; } }catch(e){}
+  return null;
+}
+function loadFirebaseSDK(cb, onErr){
+  if(window.firebase && window.firebase.database){ cb(); return; }
+  const base = "https://www.gstatic.com/firebasejs/10.12.5/";
+  const a = document.createElement("script"); a.src = base + "firebase-app-compat.js";
+  a.onload = () => {
+    const b = document.createElement("script"); b.src = base + "firebase-database-compat.js";
+    b.onload = cb; b.onerror = onErr; document.head.appendChild(b);
+  };
+  a.onerror = onErr; document.head.appendChild(a);
+}
+function initCloud(){
+  const cfg = getCloudConfig();
+  if(!cfg){ setCloudStatus("off"); return; }
+  setCloudStatus("connecting");
+  loadFirebaseSDK(() => {
+    try{
+      if(!window.firebase.apps || !window.firebase.apps.length) window.firebase.initializeApp(cfg);
+      const ref = window.firebase.database().ref(cfg.path || "schedule");
+      cloud.ref = ref; cloud.enabled = true; cloud.firstLoad = true;
+      ref.on("value", snap => {
+        const val = snap.val();
+        const remoteT = (val && val.updatedAt) ? val.updatedAt : 0;
+        const localT = (state && state.updatedAt) ? state.updatedAt : 0;
+        if(cloud.firstLoad){
+          cloud.firstLoad = false;
+          if(val && Array.isArray(val.people) && remoteT >= localT) applyRemote(val); // 雲端為準
+          else cloudPush();                                                          // 本機較新或雲端空→上傳
+        } else if(val && Array.isArray(val.people) && remoteT > localT){
+          applyRemote(val);                                                          // 他人更新→即時套用
+        }
+        setCloudStatus("connected");
+      }, err => setCloudStatus("error", (err && err.message) || "讀取失敗"));
+    }catch(e){ setCloudStatus("error", e.message); }
+  }, () => setCloudStatus("error", "元件載入失敗，請檢查網路"));
+}
+function cloudPush(){
+  if(!cloud.enabled || !cloud.ref) return;
+  try{ cloud.ref.set(state).catch(e => setCloudStatus("error", (e && e.message) || "寫入失敗")); }
+  catch(e){ setCloudStatus("error", e.message); }
+}
+// 解析貼上的 firebaseConfig（容忍 JS 物件寫法與無引號 key）
+function parseConfig(text){
+  let t = String(text).trim().replace(/^\s*(?:const|let|var)\s+\w+\s*=\s*/, "").replace(/;?\s*$/, "");
+  try{ return JSON.parse(t); }catch(e){}
+  try{
+    return JSON.parse(
+      t.replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g, '$1"$2":').replace(/'/g, '"').replace(/,\s*}/g, "}")
+    );
+  }catch(e){}
+  return null;
+}
+function openCloud(){ $("#cloudInput").value = valueOfSavedConfig(); $("#cloudOverlay").classList.add("open"); }
+function closeCloud(){ $("#cloudOverlay").classList.remove("open"); }
+function valueOfSavedConfig(){
+  const c = getCloudConfig();
+  return c ? JSON.stringify(c, null, 2) : "";
+}
+function saveCloudConfig(){
+  const text = $("#cloudInput").value;
+  const cfgEl = document.getElementById("cloud-config");
+  if(!text.trim()){
+    try{ localStorage.removeItem(CLOUD_KEY); }catch(e){}
+    cfgEl.textContent = "null";
+    cloud.enabled = false;
+    closeCloud(); setCloudStatus("off"); toast("已清除雲端設定（離線模式）");
+    return;
+  }
+  const cfg = parseConfig(text);
+  if(!cfg || !cfg.databaseURL){ alert("設定不完整：需包含 databaseURL。請從 Firebase 專案設定複製整段 firebaseConfig。"); return; }
+  try{ localStorage.setItem(CLOUD_KEY, JSON.stringify(cfg)); }catch(e){}
+  cfgEl.textContent = JSON.stringify(cfg).replace(/</g, "\\u003c");
+  closeCloud();
+  initCloud();
+  toast("雲端設定完成，正在連線…");
 }
 
 /* ===== 讀寫格子 ===== */
@@ -581,6 +793,22 @@ function exportJSON(){
     JSON.stringify(state, null, 2), "application/json");
   toast("已下載備份檔");
 }
+// 產生「可部署」的完整網頁：含雲端設定（供他人連線同步）＋目前資料（離線後備）
+function exportDeployHTML(){
+  saveNow();
+  const dataEl = document.getElementById("embedded-data");
+  const cfgEl  = document.getElementById("cloud-config");
+  const prevData = dataEl.textContent, prevCfg = cfgEl.textContent;
+  dataEl.textContent = JSON.stringify(state).replace(/</g, "\\u003c");
+  const cfg = getCloudConfig();
+  if(cfg) cfgEl.textContent = JSON.stringify(cfg).replace(/</g, "\\u003c");
+  $("#overlay").classList.remove("open");
+  $("#cloudOverlay").classList.remove("open");
+  const html = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
+  dataEl.textContent = prevData; cfgEl.textContent = prevCfg;   // 還原目前頁面
+  download("index.html", html, "text/html;charset=utf-8");
+  toast(cfg ? "已產生部署檔（含雲端同步）" : "已產生 index.html");
+}
 function exportCSV(){
   const dim = daysInMonth(curY, curM);
   let head = ["員工"];
@@ -675,7 +903,17 @@ function bindEvents(){
   $("#addPerson").addEventListener("click", addPerson);
   $("#addDivider").addEventListener("click", addDivider);
 
-  // 資料
+  // 雲端設定
+  $("#cloudBtn").addEventListener("click", openCloud);
+  $("#cloudPill").addEventListener("click", openCloud);
+  $("#closeCloud").addEventListener("click", closeCloud);
+  $("#cloudOverlay").addEventListener("click", e => { if(e.target.id === "cloudOverlay") closeCloud(); });
+  $("#saveCloud").addEventListener("click", saveCloudConfig);
+  $("#clearCloud").addEventListener("click", () => { $("#cloudInput").value = ""; saveCloudConfig(); });
+
+  // 分享 / 資料
+  $("#shareBtn").addEventListener("click", exportDeployHTML);
+  $("#reloadBtn").addEventListener("click", reloadShared);
   $("#printBtn").addEventListener("click", () => window.print());
   $("#csvBtn").addEventListener("click", exportCSV);
   $("#expBtn").addEventListener("click", exportJSON);
@@ -691,6 +929,7 @@ function init(){
   syncSelectors();
   bindEvents();
   render();
+  initCloud();   // 若已設定雲端則連線並即時同步
 }
 init();
 </script>
