@@ -22,6 +22,7 @@
     --am-solid:#f5a524;   --am-tint:#fff4e0;    --am-ink:#95590a;
     --pm-solid:#5b6bff;   --pm-tint:#edeffe;    --pm-ink:#3538cd;
     --full-solid:#17a34a; --full-tint:#e7f7ec;  --full-ink:#0f7a37;
+    --wai-solid:#9a1b2e;  --wai-tint:#f6dde1;   --wai-ink:#7a1122;
 
     --wknd:#f6f2ee;        /* 週末底色 */
     --cell:44px;           /* 格子尺寸 */
@@ -110,6 +111,7 @@
   .brush.am   .dot{background:var(--am-solid)}
   .brush.pm   .dot{background:var(--pm-solid)}
   .brush.full .dot{background:var(--full-solid)}
+  .brush.wai  .dot{background:var(--wai-solid)}
   .brush.erase .dot{background:var(--ink-faint);font-size:13px}
   .brush[aria-pressed="true"]{color:var(--ink);border-color:var(--ink);
     box-shadow:0 0 0 3px rgba(32,36,46,.08)}
@@ -200,6 +202,9 @@
   td.cell.am    .mark{background:var(--am-tint);  color:var(--am-ink)}
   td.cell.pm    .mark{background:var(--pm-tint);  color:var(--pm-ink)}
   td.cell.full  .mark{background:var(--full-tint);color:var(--full-ink)}
+  td.cell.wai{box-shadow:inset 0 0 0 2px rgba(154,27,46,.65)}
+  td.cell .wtag{position:absolute;top:2px;right:2px;background:var(--wai-solid);color:#fff;
+    font-size:9px;font-weight:800;line-height:1;padding:1px 3px;border-radius:4px;pointer-events:none}
   @media (hover:hover){ td.cell:hover{background:rgba(32,36,46,.035)} }
   td.cell:active .mark{transform:scale(.9)}
   .mark{transition:transform .07s ease}
@@ -215,6 +220,7 @@
     font-size:12px;font-weight:800;color:#fff}
   .legend .off .sw{background:var(--off-solid)} .legend .am .sw{background:var(--am-solid)}
   .legend .pm .sw{background:var(--pm-solid)}   .legend .full .sw{background:var(--full-solid)}
+  .legend .wai .sw{background:var(--wai-solid)}
 
   .stat-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:22px}
   table.stat{border-collapse:collapse;width:100%;min-width:340px;font-size:13.5px}
@@ -226,6 +232,9 @@
   .stat .z{color:var(--ink-faint)}
   .stat td.c-off .num{color:var(--off-ink)} .stat td.c-am .num{color:var(--am-ink)}
   .stat td.c-pm .num{color:var(--pm-ink)}   .stat td.c-full .num{color:var(--full-ink)}
+  .stat td.c-wai .num{color:var(--wai-ink)}
+  .stat th.c-tot,.stat td.c-tot{background:#f3f4f7;border-left:1.5px solid #dfe1e8}
+  .stat td.c-tot .num{font-weight:800;color:var(--ink);font-size:14.5px}
 
   .filerow{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:34px}
   .fbtn{flex:1;min-width:132px;height:46px;border-radius:12px;border:1.5px solid var(--line-mid);
@@ -332,6 +341,7 @@
     <button class="brush am"    data-brush="am"    aria-pressed="false"><span class="dot">早</span>早班</button>
     <button class="brush pm"    data-brush="pm"    aria-pressed="false"><span class="dot">晚</span>晚班</button>
     <button class="brush full"  data-brush="full"  aria-pressed="false"><span class="dot">全</span>全天</button>
+    <button class="brush wai"   data-brush="wai"   aria-pressed="false"><span class="dot">外</span>外場</button>
     <button class="brush erase" data-brush="erase" aria-pressed="false"><span class="dot">⌫</span>清除</button>
   </div>
   <div class="actions">
@@ -360,6 +370,7 @@
     <div class="item am"><span class="sw">早</span>早班</div>
     <div class="item pm"><span class="sw">晚</span>晚班</div>
     <div class="item full"><span class="sw">全</span>全天</div>
+    <div class="item wai"><span class="sw">外</span>外場（可疊加）</div>
     <div class="item"><span style="width:20px;height:20px;border-radius:6px;border:1px solid var(--line-mid);display:inline-block"></span>正常班（空白）</div>
   </div>
 
@@ -368,22 +379,13 @@
     <table class="stat" id="statTable"></table>
   </div>
 
-  <h2>分享給他人瀏覽</h2>
-  <div class="filerow" style="margin-bottom:12px">
-    <button class="fbtn primary" id="shareBtn"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.6"/><circle cx="6" cy="12" r="2.6"/><circle cx="18" cy="19" r="2.6"/><path d="M8.3 10.7l7.4-4.4M8.3 13.3l7.4 4.4"/></svg>匯出部署檔（index.html）</button>
+  <h2>功能</h2>
+  <div class="filerow">
+    <button class="fbtn" id="jpgBtn"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.6"/><path d="M21 16l-5-5-7 7"/></svg>匯出 JPG</button>
+    <button class="fbtn" id="csvBtn"><svg viewBox="0 0 24 24"><path d="M4 4h11l5 5v11H4z"/><path d="M15 4v5h5"/><path d="M8 15h8M8 12h8"/></svg>匯出 Excel</button>
     <button class="fbtn" id="reloadBtn"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-.8 3.5"/><path d="M20 4v5h-5"/></svg>還原成雲端內容</button>
   </div>
-  <p class="foot" style="text-align:left;margin-bottom:28px"><b>設定雲端後（右上角雲朵圖示）＝即時同步</b>：只要用「匯出部署檔」上傳一次含設定的網頁，之後你在任何裝置修改都會即時存到雲端，別人開著網址就自動看到最新版，<b>不必再重傳</b>。<br>未設定雲端＝離線模式：部署檔會包含當下的班表，但每次改動仍需重新匯出、上傳覆蓋。</p>
-
-  <h2>其他</h2>
-  <div class="filerow">
-    <button class="fbtn" id="printBtn"><svg viewBox="0 0 24 24"><path d="M6 9V4h12v5"/><rect x="6" y="13" width="12" height="7"/><path d="M6 17H4a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2h-2"/></svg>列印 / 存 PDF</button>
-    <button class="fbtn" id="csvBtn"><svg viewBox="0 0 24 24"><path d="M4 4h11l5 5v11H4z"/><path d="M15 4v5h5"/><path d="M8 15h8M8 12h8"/></svg>匯出 Excel(CSV)</button>
-    <button class="fbtn" id="expBtn"><svg viewBox="0 0 24 24"><path d="M12 3v11"/><path d="M8 10l4 4 4-4"/><path d="M4 19h16"/></svg>備份檔</button>
-    <button class="fbtn" id="impBtn"><svg viewBox="0 0 24 24"><path d="M12 14V3"/><path d="M8 7l4-4 4 4"/><path d="M4 19h16"/></svg>還原備份</button>
-    <input type="file" id="impFile" accept="application/json,.json" hidden>
-  </div>
-  <p class="foot">你正在編輯的資料自動存在此裝置的瀏覽器中，不會上傳。要正式分享請用上方「匯出分享網頁」。換手機或清除瀏覽資料前，可用「備份檔」另存一份。</p>
+  <p class="foot">排班資料即時同步到雲端，各裝置開啟同一網址即可看到最新內容。</p>
 </section>
 
 <!-- 管理員工 -->
@@ -645,16 +647,35 @@ function bucket(y, m){
   if(!state.data[k]) state.data[k] = {};
   return state.data[k];
 }
-function getCell(pid, day){
+// 一格可同時有「班別 s」與「外場 w」。相容舊格式：字串＝只有班別；物件＝含外場。
+function rawCell(pid, day){
   const b = state.data[mKey(curY, curM)];
   return b && b[pid] ? b[pid][day] : undefined;
 }
-function setCell(pid, day, status){
+function normCell(v){
+  if(v == null) return { s:null, w:false };
+  if(typeof v === "string") return { s:v, w:false };
+  return { s: v.s || null, w: !!v.w };
+}
+function getBase(pid, day){ return normCell(rawCell(pid, day)).s; }
+function getWai(pid, day){ return normCell(rawCell(pid, day)).w; }
+function writeCell(pid, day, s, w){
   const b = bucket(curY, curM);
   if(!b[pid]) b[pid] = {};
-  if(status) b[pid][day] = status;
-  else { delete b[pid][day]; if(Object.keys(b[pid]).length === 0) delete b[pid]; }
+  if(!s && !w){ delete b[pid][day]; if(Object.keys(b[pid]).length === 0) delete b[pid]; }
+  else if(w){ b[pid][day] = s ? { s:s, w:true } : { w:true }; }   // 有外場→存物件
+  else { b[pid][day] = s; }                                        // 無外場→存字串（相容舊格式）
   save();
+}
+function setBase(pid, day, status){ const c = normCell(rawCell(pid, day)); writeCell(pid, day, status, c.w); }
+function toggleWai(pid, day){ const c = normCell(rawCell(pid, day)); writeCell(pid, day, c.s, !c.w); }
+function clearCell(pid, day){ writeCell(pid, day, null, false); }
+// 產生格子內容（班別字 + 外場標籤）
+function cellInner(base, wai){
+  let h = "";
+  if(base) h += `<span class="mark">${STATUSES[base].label}</span>`;
+  if(wai) h += `<span class="wtag">外</span>`;
+  return h;
 }
 
 /* ===== 建表 ===== */
@@ -688,10 +709,9 @@ function buildGrid(){
       const wd = new Date(curY, curM - 1, d).getDay();
       const wknd = (wd === 0 || wd === 6) ? " wknd" : "";
       const today = (isThisMonth && d === todayD) ? " todaycol" : "";
-      const st = getCell(p.id, d);
-      const cls = st ? " " + st : "";
-      const mark = st ? `<span class="mark">${STATUSES[st].label}</span>` : "";
-      row += `<td class="cell${cls}${wknd}${today}" data-pid="${p.id}" data-day="${d}" tabindex="0" role="button" aria-label="${p.name} ${curM}月${d}日">${mark}</td>`;
+      const base = getBase(p.id, d), wai = getWai(p.id, d);
+      const cls = (base ? " " + base : "") + (wai ? " wai" : "");
+      row += `<td class="cell${cls}${wknd}${today}" data-pid="${p.id}" data-day="${d}" tabindex="0" role="button" aria-label="${p.name} ${curM}月${d}日">${cellInner(base, wai)}</td>`;
     }
     row += "</tr>";
     body += row;
@@ -705,34 +725,40 @@ function buildGrid(){
 function paintCell(td){
   if(!editable) return;   // 檢視模式：不可編輯
   const pid = td.dataset.pid, day = +td.dataset.day;
-  const cur = getCell(pid, day);
-  if(brush === "erase"){
-    setCell(pid, day, null);
-    td.className = td.className.replace(/\b(off|am|pm|full)\b/g, "").replace(/\s+/g," ").trim();
-    td.innerHTML = "";
-  }else{
-    setCell(pid, day, brush);
-    td.classList.remove("off","am","pm","full");
-    td.classList.add(brush);
-    td.innerHTML = `<span class="mark">${STATUSES[brush].label}</span>`;
-  }
+  if(brush === "erase") clearCell(pid, day);
+  else if(brush === "wai") toggleWai(pid, day);     // 外場：可疊加，切換開關
+  else setBase(pid, day, brush);                    // 休/早/晚/全：設定班別
+  const base = getBase(pid, day), wai = getWai(pid, day);
+  td.classList.remove("off","am","pm","full","wai");
+  if(base) td.classList.add(base);
+  if(wai) td.classList.add("wai");
+  td.innerHTML = cellInner(base, wai);
   buildStats();
 }
 
 /* ===== 統計 ===== */
 function buildStats(){
-  const rows = ['<thead><tr><th>員工</th><th>休假</th><th>早班</th><th>晚班</th><th>全天</th></tr></thead>'];
+  const head = '<thead><tr><th>員工</th><th>休假</th><th>早班</th><th>晚班</th><th>全天</th><th>外場</th>' +
+               '<th class="c-tot">總計</th></tr></thead>';
   let body = "";
   for(const p of state.people){
     if(p.type === "divider") continue;
     const b = state.data[mKey(curY, curM)];
     const rec = (b && b[p.id]) ? b[p.id] : {};
-    const c = {off:0, am:0, pm:0, full:0};
-    Object.values(rec).forEach(s => { if(c[s] !== undefined) c[s]++; });
+    const c = { off:0, am:0, pm:0, full:0, wai:0 };
+    Object.values(rec).forEach(v => {
+      const n = normCell(v);
+      if(n.s && c[n.s] !== undefined) c[n.s]++;
+      if(n.w) c.wai++;
+    });
+    const total = c.off * 1 + c.am * 0.5 + c.pm * 0.5;   // 全天=0，不列入
+    const totStr = Number.isInteger(total) ? String(total) : total.toFixed(1);
     const cell = (k, cls) => `<td class="${cls}"><span class="num ${c[k] ? "" : "z"}">${c[k]}</span></td>`;
-    body += `<tr><td>${escapeHtml(p.name)}</td>${cell("off","c-off")}${cell("am","c-am")}${cell("pm","c-pm")}${cell("full","c-full")}</tr>`;
+    body += `<tr><td>${escapeHtml(p.name)}</td>${cell("off","c-off")}${cell("am","c-am")}` +
+            `${cell("pm","c-pm")}${cell("full","c-full")}${cell("wai","c-wai")}` +
+            `<td class="c-tot"><span class="num ${total ? "" : "z"}">${totStr}</span></td></tr>`;
   }
-  $("#statTable").innerHTML = rows[0] + "<tbody>" + body + "</tbody>";
+  $("#statTable").innerHTML = head + "<tbody>" + body + "</tbody>";
 }
 
 /* ===== 月份控制 ===== */
@@ -769,6 +795,13 @@ function applyLockUI(){
   document.body.classList.toggle("locked-mode", !editable);
 }
 function setEditable(on){ editable = on; applyLockUI(); }
+// 通用密碼驗證：回傳是否通過
+function requirePw(){
+  const pw = prompt("請輸入密碼：");
+  if(pw === null) return false;
+  if(pw !== EDIT_PW){ toast("密碼錯誤"); return false; }
+  return true;
+}
 function toggleLock(){
   const pw = prompt(editable ? "請輸入密碼以鎖定為檢視模式：" : "請輸入密碼以解鎖編輯：");
   if(pw === null) return;                           // 使用者取消
@@ -876,14 +909,142 @@ function exportCSV(){
     if(p.type === "divider"){ lines.push(""); continue; }
     const cells = [csvSafe(p.name)];
     for(let d = 1; d <= dim; d++){
-      const s = getCell(p.id, d);
-      cells.push(s ? STATUSES[s].label : "");
+      const base = getBase(p.id, d), wai = getWai(p.id, d);
+      const txt = (base ? STATUSES[base].label : "") + (wai ? (base ? "+外" : "外") : "");
+      cells.push(csvSafe(txt));
     }
     lines.push(cells.join(","));
   }
   const bom = "\uFEFF";
   download(`排班表_${curY}-${pad2(curM)}.csv`, bom + lines.join("\r\n"), "text/csv;charset=utf-8");
   toast("已匯出 CSV，可用 Excel 開啟");
+}
+// 將目前月份班表繪製到 Canvas，匯出為 JPG 圖檔（自足、不依賴外部函式庫）
+function buildScheduleCanvas(){
+  const SANS = '"PingFang TC","Heiti TC","Microsoft JhengHei","Noto Sans TC",sans-serif';
+  const MONO = 'ui-monospace,Menlo,Consolas,"Courier New",monospace';
+  const COL = { off:["#fdecec","#b42318"], am:["#fff4e0","#95590a"], pm:["#edeffe","#3538cd"], full:["#e7f7ec","#0f7a37"] };
+  const SOL = { off:"#e5484d", am:"#f5a524", pm:"#5b6bff", full:"#17a34a", wai:"#9a1b2e" };
+  const WKND="#f6f2ee", LINE="#e1e3e9", INK="#20242e", SOFT="#5b616e", FAINT="#9aa0ab", ACC="#d7263d", PAPER="#eef0f4";
+
+  const dim = daysInMonth(curY, curM);
+  const s = 2;                                   // 2 倍解析度，圖片更清晰
+  const pad = 18, nameW = 92, cellW = 42, cellH = 40, wkH = 24, dyH = 26, titleH = 58, legendH = 46;
+  const rows = state.people.map(p => ({ p, h: p.type === "divider" ? 14 : cellH }));
+  const gridW = nameW + dim * cellW;
+  const W = pad * 2 + gridW;
+  const wkTop = pad + titleH, dyTop = wkTop + wkH, bodyTop = dyTop + dyH;
+  const bodyH = rows.reduce((a, r) => a + r.h, 0);
+  const bodyBottom = bodyTop + bodyH;
+  const H = bodyBottom + legendH + pad;
+
+  const cv = document.createElement("canvas");
+  cv.width = Math.round(W * s); cv.height = Math.round(H * s);
+  const ctx = cv.getContext("2d");
+  ctx.scale(s, s);
+  ctx.textBaseline = "middle";
+  const isThisMonth = (curY === now.getFullYear() && curM === now.getMonth() + 1), todayD = now.getDate();
+  const colX = c => pad + nameW + c * cellW;
+
+  // 白底
+  ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, W, H);
+
+  // 標題
+  ctx.textAlign = "left"; ctx.fillStyle = INK; ctx.font = "800 22px " + SANS;
+  ctx.fillText("員工排班表", pad, pad + 15);
+  ctx.fillStyle = SOFT; ctx.font = "600 14px " + SANS;
+  ctx.fillText(curY + " 年 " + curM + " 月", pad, pad + 40);
+  if(state.brandSub){ ctx.textAlign = "right"; ctx.fillStyle = FAINT; ctx.font = "600 12px " + SANS;
+    ctx.fillText(state.brandSub, W - pad, pad + 40); }
+
+  // 週末整欄底色
+  for(let dd = 1; dd <= dim; dd++){
+    const wd = new Date(curY, curM - 1, dd).getDay();
+    if(wd === 0 || wd === 6){ ctx.fillStyle = WKND; ctx.fillRect(colX(dd - 1), wkTop, cellW, bodyBottom - wkTop); }
+  }
+  // 狀態格底色 + 分隔列
+  let y = bodyTop;
+  for(const r of rows){
+    if(r.p.type === "divider"){ ctx.fillStyle = PAPER; ctx.fillRect(pad, y, gridW, r.h); }
+    else for(let dd = 1; dd <= dim; dd++){
+      const base = getBase(r.p.id, dd), wai = getWai(r.p.id, dd);
+      const cx0 = colX(dd - 1);
+      if(base && COL[base]){ ctx.fillStyle = COL[base][0]; ctx.fillRect(cx0 + 1, y + 1, cellW - 2, r.h - 2); }
+      if(wai){ ctx.strokeStyle = "rgba(154,27,46,.7)"; ctx.lineWidth = 2; ctx.strokeRect(cx0 + 2, y + 2, cellW - 4, r.h - 4); }
+    }
+    y += r.h;
+  }
+
+  // 格線
+  ctx.strokeStyle = LINE; ctx.lineWidth = 1; ctx.beginPath();
+  ctx.moveTo(pad + .5, wkTop); ctx.lineTo(pad + .5, bodyBottom);            // 最左
+  for(let c = 0; c <= dim; c++){ const x = colX(c) + .5; ctx.moveTo(x, wkTop); ctx.lineTo(x, bodyBottom); }
+  const hLines = [wkTop, dyTop, bodyTop]; let yy = bodyTop;
+  for(const r of rows){ yy += r.h; hLines.push(yy); }
+  for(const hy of hLines){ ctx.moveTo(pad, hy + .5); ctx.lineTo(colX(dim), hy + .5); }
+  ctx.stroke();
+
+  // 表頭文字
+  ctx.textAlign = "center";
+  for(let dd = 1; dd <= dim; dd++){
+    const wd = new Date(curY, curM - 1, dd).getDay();
+    const today = isThisMonth && dd === todayD;
+    const cx = colX(dd - 1) + cellW / 2;
+    ctx.fillStyle = today ? ACC : SOFT; ctx.font = "600 12px " + SANS;
+    ctx.fillText(WK[wd], cx, wkTop + wkH / 2 + 1);
+    ctx.fillStyle = today ? ACC : INK; ctx.font = "600 13px " + MONO;
+    ctx.fillText(String(dd), cx, dyTop + dyH / 2);
+  }
+
+  // 姓名 + 狀態字
+  y = bodyTop;
+  for(const r of rows){
+    if(r.p.type !== "divider"){
+      ctx.textAlign = "left"; ctx.fillStyle = INK; ctx.font = "700 14px " + SANS;
+      ctx.fillText(r.p.name, pad + 9, y + r.h / 2);
+      ctx.textAlign = "center";
+      for(let dd = 1; dd <= dim; dd++){
+        const base = getBase(r.p.id, dd), wai = getWai(r.p.id, dd);
+        const cx0 = colX(dd - 1);
+        if(base && COL[base]){ ctx.fillStyle = COL[base][1]; ctx.font = "700 15px " + SANS;
+          ctx.fillText(STATUSES[base].label, cx0 + cellW / 2, y + r.h / 2); }
+        if(wai){
+          const tw = 15, th = 12, tx = cx0 + cellW - tw - 2, ty = y + 2;
+          ctx.fillStyle = SOL.wai; roundRect(ctx, tx, ty, tw, th, 3); ctx.fill();
+          ctx.fillStyle = "#fff"; ctx.font = "800 9px " + SANS; ctx.fillText("外", tx + tw / 2, ty + th / 2 + 1);
+        }
+      }
+    }
+    y += r.h;
+  }
+
+  // 圖例
+  const ly = bodyBottom + legendH / 2 + 4; let lx = pad;
+  ctx.textBaseline = "middle";
+  for(const k of ["off","am","pm","full","wai"]){
+    ctx.fillStyle = SOL[k]; roundRect(ctx, lx, ly - 9, 18, 18, 4); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.font = "800 11px " + SANS; ctx.textAlign = "center";
+    ctx.fillText(STATUSES[k] ? STATUSES[k].label : "外", lx + 9, ly + 1);
+    ctx.fillStyle = SOFT; ctx.font = "600 13px " + SANS; ctx.textAlign = "left";
+    const label = { off:"休假", am:"早班", pm:"晚班", full:"全天", wai:"外場" }[k];
+    ctx.fillText(label, lx + 24, ly);
+    lx += 24 + ctx.measureText(label).width + 22;
+  }
+  return cv;
+}
+function roundRect(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function exportJPG(){
+  try{
+    const cv = buildScheduleCanvas();
+    const url = cv.toDataURL("image/jpeg", 0.92);
+    const a = document.createElement("a");
+    a.href = url; a.download = `排班表_${curY}-${pad2(curM)}.jpg`; a.click();
+    toast("已匯出 JPG 圖檔");
+  }catch(e){ alert("匯出圖檔失敗：" + e.message); }
 }
 function importJSON(file){
   const r = new FileReader();
@@ -952,22 +1113,18 @@ function bindEvents(){
   // 編輯/檢視 模式開關
   $("#lockBtn").addEventListener("click", toggleLock);
 
-  // 雲端設定
+  // 雲端設定（清除/儲存需密碼）
   $("#cloudBtn").addEventListener("click", openCloud);
   $("#cloudPill").addEventListener("click", openCloud);
   $("#closeCloud").addEventListener("click", closeCloud);
   $("#cloudOverlay").addEventListener("click", e => { if(e.target.id === "cloudOverlay") closeCloud(); });
-  $("#saveCloud").addEventListener("click", saveCloudConfig);
-  $("#clearCloud").addEventListener("click", () => { $("#cloudInput").value = ""; saveCloudConfig(); });
+  $("#saveCloud").addEventListener("click", () => { if(requirePw()) saveCloudConfig(); });
+  $("#clearCloud").addEventListener("click", () => { if(requirePw()){ $("#cloudInput").value = ""; saveCloudConfig(); } });
 
-  // 分享 / 資料
-  $("#shareBtn").addEventListener("click", exportDeployHTML);
+  // 功能
   $("#reloadBtn").addEventListener("click", reloadShared);
-  $("#printBtn").addEventListener("click", () => window.print());
+  $("#jpgBtn").addEventListener("click", exportJPG);
   $("#csvBtn").addEventListener("click", exportCSV);
-  $("#expBtn").addEventListener("click", exportJSON);
-  $("#impBtn").addEventListener("click", () => $("#impFile").click());
-  $("#impFile").addEventListener("change", e => { if(e.target.files[0]) importJSON(e.target.files[0]); e.target.value = ""; });
 }
 
 /* ===== 啟動 ===== */
