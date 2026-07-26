@@ -123,6 +123,24 @@
   .abtn svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-width:1.8;
     stroke-linecap:round;stroke-linejoin:round}
 
+  /* 編輯/檢視 模式開關 */
+  .modebtn{height:40px;padding:0 12px 0 10px;border-radius:11px;border:1.5px solid var(--line-mid);
+    background:var(--surface);cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+    font-size:13px;font-weight:700;line-height:1}
+  .modebtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;
+    stroke-linecap:round;stroke-linejoin:round}
+  .modebtn .i-open{display:none}
+  .modebtn.editable{color:var(--full-ink);border-color:#bfe6cd;background:var(--full-tint)}
+  .modebtn.editable .i-lock{display:none}
+  .modebtn.editable .i-open{display:inline}
+  .modebtn.locked{color:var(--off-ink);border-color:#f3cdcd;background:var(--off-tint)}
+  .modebtn:active{filter:brightness(.96)}
+
+  /* 檢視模式：停用筆刷、格子顯示不可點 */
+  .brushset.disabled{opacity:.4;pointer-events:none}
+  body.locked-mode td.cell{cursor:default}
+  body.locked-mode td.cell:active .mark{transform:none}
+
   /* ── 表格 ── */
   .grid-wrap{
     overflow:auto;-webkit-overflow-scrolling:touch;
@@ -317,6 +335,11 @@
     <button class="brush erase" data-brush="erase" aria-pressed="false"><span class="dot">⌫</span>清除</button>
   </div>
   <div class="actions">
+    <button class="modebtn locked" id="lockBtn" aria-label="切換編輯/檢視模式" title="切換編輯/檢視模式">
+      <svg class="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+      <svg class="i-open" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.7-1.5"/></svg>
+      <span class="lbl">檢視</span>
+    </button>
     <button class="abtn" id="cloudBtn" aria-label="雲端設定" title="雲端設定">
       <svg viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.5-7.97A5.5 5.5 0 0 1 17 9.5a3.5 3.5 0 0 1 .5 6.98"/><path d="M12 12v6M9.5 15.5 12 18l2.5-2.5"/></svg>
     </button>
@@ -436,6 +459,8 @@ const now = new Date();
 const DEFAULT_YEAR = 2026, DEFAULT_MONTH = 8;
 let curY = DEFAULT_YEAR;
 let curM = DEFAULT_MONTH;   // 1-12
+let editable = false;       // 預設鎖定（檢視模式）；每次開啟都預設鎖定
+const EDIT_PW = "6666";     // 解鎖密碼
 
 /* ===== 工具 ===== */
 const $ = s => document.querySelector(s);
@@ -678,6 +703,7 @@ function buildGrid(){
 }
 
 function paintCell(td){
+  if(!editable) return;   // 檢視模式：不可編輯
   const pid = td.dataset.pid, day = +td.dataset.day;
   const cur = getCell(pid, day);
   if(brush === "erase"){
@@ -729,8 +755,33 @@ function goMonth(y, m){
 
 function render(){ buildGrid(); buildStats(); }
 
+/* ===== 編輯 / 檢視 模式（密碼解鎖）===== */
+function applyLockUI(){
+  const btn = document.getElementById("lockBtn");
+  if(btn){
+    btn.classList.toggle("editable", editable);
+    btn.classList.toggle("locked", !editable);
+    btn.querySelector(".lbl").textContent = editable ? "編輯中" : "檢視";
+    btn.title = editable ? "目前可編輯，點此鎖定為檢視模式" : "目前為檢視模式，點此輸入密碼解鎖";
+  }
+  const bs = document.getElementById("brushSet");
+  if(bs) bs.classList.toggle("disabled", !editable);
+  document.body.classList.toggle("locked-mode", !editable);
+}
+function setEditable(on){ editable = on; applyLockUI(); }
+function toggleLock(){
+  const pw = prompt(editable ? "請輸入密碼以鎖定為檢視模式：" : "請輸入密碼以解鎖編輯：");
+  if(pw === null) return;                           // 使用者取消
+  if(pw !== EDIT_PW){ toast("密碼錯誤"); return; }   // 密碼錯誤，狀態不變
+  if(editable){ setEditable(false); toast("已鎖定為檢視模式"); }
+  else { setEditable(true); toast("已解鎖，可編輯排班"); }
+}
+
 /* ===== 管理員工 ===== */
-function openManage(){ renderPeople(); $("#overlay").classList.add("open"); }
+function openManage(){
+  if(!editable){ toast("排班已鎖定，請先解鎖後再管理員工"); return; }
+  renderPeople(); $("#overlay").classList.add("open");
+}
 function closeManage(){ $("#overlay").classList.remove("open"); render(); }
 function renderPeople(){
   const list = $("#peopleList");
@@ -898,6 +949,9 @@ function bindEvents(){
   $("#addPerson").addEventListener("click", addPerson);
   $("#addDivider").addEventListener("click", addDivider);
 
+  // 編輯/檢視 模式開關
+  $("#lockBtn").addEventListener("click", toggleLock);
+
   // 雲端設定
   $("#cloudBtn").addEventListener("click", openCloud);
   $("#cloudPill").addEventListener("click", openCloud);
@@ -924,7 +978,8 @@ function init(){
   syncSelectors();
   bindEvents();
   render();
-  initCloud();   // 若已設定雲端則連線並即時同步
+  applyLockUI();   // 預設鎖定為檢視模式
+  initCloud();     // 若已設定雲端則連線並即時同步
 }
 init();
 </script>
