@@ -508,7 +508,7 @@ function load(){
   else if(local) state = local;
   else state = embedded || defaultState();
   state.data = state.data || {};
-  save(true);
+  cacheLocal();   // 僅寫本機快取，不推雲端（避免用空白預設蓋掉雲端資料）
 }
 // 強制載入檔案裡的發佈內容（給誤改的人還原用）
 function loadPublished(){
@@ -567,7 +567,7 @@ function getCloudConfig(){
 }
 function loadFirebaseSDK(cb, onErr){
   if(window.firebase && window.firebase.database){ cb(); return; }
-  const base = "https://www.gstatic.com/firebasejs/10.12.5/";
+  const base = "https://www.gstatic.com/firebasejs/10.13.2/";
   const a = document.createElement("script"); a.src = base + "firebase-app-compat.js";
   a.onload = () => {
     const b = document.createElement("script"); b.src = base + "firebase-database-compat.js";
@@ -586,19 +586,27 @@ function initCloud(){
       cloud.ref = ref; cloud.enabled = true; cloud.firstLoad = true;
       ref.on("value", snap => {
         const val = snap.val();
-        const remoteT = (val && val.updatedAt) ? val.updatedAt : 0;
-        const localT = (state && state.updatedAt) ? state.updatedAt : 0;
+        const remoteOK = val && Array.isArray(val.people);
         if(cloud.firstLoad){
           cloud.firstLoad = false;
-          if(val && Array.isArray(val.people) && remoteT >= localT) applyRemote(val); // 雲端為準
-          else cloudPush();                                                          // 本機較新或雲端空→上傳
-        } else if(val && Array.isArray(val.people) && remoteT > localT){
-          applyRemote(val);                                                          // 他人更新→即時套用
+          if(remoteOK && hasScheduleData(val)) applyRemote(val);        // 雲端已有班表→採用
+          else if(hasScheduleData(state)) cloudPush();                  // 雲端空、本機有班表→上傳當種子
+          else if(remoteOK) applyRemote(val);                          // 兩邊都空→同步結構（員工名單）
+          toast("雲端已連線");
+        } else {
+          const remoteT = (val && val.updatedAt) ? val.updatedAt : 0;
+          const localT = (state && state.updatedAt) ? state.updatedAt : 0;
+          if(remoteOK && remoteT > localT) applyRemote(val);            // 他人更新→即時套用
         }
         setCloudStatus("connected");
-      }, err => setCloudStatus("error", (err && err.message) || "讀取失敗"));
-    }catch(e){ setCloudStatus("error", e.message); }
-  }, () => setCloudStatus("error", "元件載入失敗，請檢查網路"));
+      }, err => { setCloudStatus("error", (err && err.message) || "讀取失敗"); toast("雲端讀取失敗：" + ((err && err.message) || "")); });
+    }catch(e){ setCloudStatus("error", e.message); toast("雲端連線錯誤：" + e.message); }
+  }, () => { setCloudStatus("error", "元件載入失敗"); toast("雲端元件載入失敗，請檢查網路或防火牆"); });
+}
+// 判斷 state 是否含有實際排班資料（任一月份有任一格）
+function hasScheduleData(st){
+  if(!st || !st.data) return false;
+  return Object.values(st.data).some(m => m && Object.keys(m).length > 0);
 }
 function cloudPush(){
   if(!cloud.enabled || !cloud.ref) return;
