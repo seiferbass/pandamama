@@ -228,6 +228,7 @@
   .stat th{font-weight:700;color:var(--ink-soft);font-size:12px;background:var(--surface)}
   .stat td:first-child,.stat th:first-child{text-align:left;padding-left:12px;font-weight:600}
   .stat tbody tr:last-child td{border-bottom:none}
+  .stat tr.stat-div td{height:8px;padding:0;background:var(--paper);border-bottom:1.5px solid var(--line-mid)}
   .stat .num{font-family:var(--mono);font-weight:600}
   .stat .z{color:var(--ink-faint)}
   .stat td.c-off .num{color:var(--off-ink)} .stat td.c-am .num{color:var(--am-ink)}
@@ -378,6 +379,7 @@
   <div class="stat-wrap">
     <table class="stat" id="statTable"></table>
   </div>
+  <p class="foot" style="text-align:left;margin-bottom:22px">總計為當月休息天數。分隔線<b>上方</b>員工＝空白視為上班（休息 = 休假×1 + 早/晚×0.5）；<b>下方</b>員工＝空白視為休息（休息 = 當月天數 − 早/晚×0.5 − 全天×1）。</p>
 
   <h2>功能</h2>
   <div class="filerow">
@@ -748,9 +750,11 @@ function paintCell(td){
 function buildStats(){
   const head = '<thead><tr><th>員工</th><th>休假</th><th>早班</th><th>晚班</th><th>全天</th><th>外場</th>' +
                '<th class="c-tot">總計</th></tr></thead>';
+  const monthDays = daysInMonth(curY, curM);
   let body = "";
+  let below = false;   // 遇到分隔線後為 true（下方輪班型員工）
   for(const p of state.people){
-    if(p.type === "divider") continue;
+    if(p.type === "divider"){ below = true; body += '<tr class="stat-div"><td colspan="7"></td></tr>'; continue; }
     const b = state.data[mKey(curY, curM)];
     const rec = (b && b[p.id]) ? b[p.id] : {};
     const c = { off:0, am:0, pm:0, full:0, wai:0 };
@@ -759,7 +763,11 @@ function buildStats(){
       if(n.s && c[n.s] !== undefined) c[n.s]++;
       if(n.w) c.wai++;
     });
-    const total = c.off * 1 + c.am * 0.5 + c.pm * 0.5;   // 全天=0，不列入
+    // 上方：空白=上班 → 休息 = 休×1 + 早/晚×0.5
+    // 下方：空白=休息 → 休息 = 當月天數 − 早/晚×0.5 − 全×1
+    const total = below
+      ? monthDays - c.am * 0.5 - c.pm * 0.5 - c.full * 1
+      : c.off * 1 + c.am * 0.5 + c.pm * 0.5;
     const totStr = Number.isInteger(total) ? String(total) : total.toFixed(1);
     const cell = (k, cls) => `<td class="${cls}"><span class="num ${c[k] ? "" : "z"}">${c[k]}</span></td>`;
     body += `<tr><td>${escapeHtml(p.name)}</td>${cell("off","c-off")}${cell("am","c-am")}` +
