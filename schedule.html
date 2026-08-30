@@ -394,7 +394,7 @@
 <div class="overlay" id="overlay">
   <div class="sheet" role="dialog" aria-label="管理員工">
     <div class="sheet-head">
-      <h3>管理員工</h3>
+      <h3>管理員工<span id="manageMonth" style="font-weight:600;font-size:12.5px;color:var(--ink-faint);margin-left:8px"></span></h3>
       <button class="close" id="closeSheet" aria-label="關閉">✕</button>
     </div>
     <div class="sheet-body" id="peopleList"></div>
@@ -707,7 +707,7 @@ function buildGrid(){
 
   // 內容
   let body = "";
-  for(const p of state.people){
+  for(const p of curPeople()){
     if(p.type === "divider"){
       body += `<tr class="divider"><th class="namecell"></th>` +
               `<td colspan="${dim}"></td></tr>`;
@@ -752,7 +752,7 @@ function buildStats(){
   const monthDays = daysInMonth(curY, curM);
   let body = "";
   let below = false;   // 遇到分隔線後為 true（下方輪班型員工）
-  for(const p of state.people){
+  for(const p of curPeople()){
     if(p.type === "divider"){ below = true; body += '<tr class="stat-div"><td colspan="7"></td></tr>'; continue; }
     const b = state.data[mKey(curY, curM)];
     const rec = (b && b[p.id]) ? b[p.id] : {};
@@ -828,13 +828,16 @@ function toggleLock(){
 /* ===== 管理員工 ===== */
 function openManage(){
   if(!editable){ toast("排班已鎖定，請先解鎖後再管理員工"); return; }
+  const lbl = document.getElementById("manageMonth");
+  if(lbl) lbl.textContent = `（僅套用於 ${curY} 年 ${curM} 月）`;
   renderPeople(); $("#overlay").classList.add("open");
 }
 function closeManage(){ $("#overlay").classList.remove("open"); render(); }
 function renderPeople(){
   const list = $("#peopleList");
   list.innerHTML = "";
-  state.people.forEach((p, i) => {
+  const arr = ensureMonthPeople();
+  arr.forEach((p, i) => {
     const row = document.createElement("div");
     if(p.type === "divider"){
       row.className = "prow dvd";
@@ -848,7 +851,7 @@ function renderPeople(){
     const dn = miniBtn(downSvg(), () => moveItem(i, 1));
     const del = miniBtn(delSvg(), () => removeItem(i)); del.classList.add("del");
     if(i === 0) up.disabled = true, up.style.opacity = .35;
-    if(i === state.people.length - 1) dn.disabled = true, dn.style.opacity = .35;
+    if(i === arr.length - 1) dn.disabled = true, dn.style.opacity = .35;
     row.appendChild(up); row.appendChild(dn); row.appendChild(del);
     list.appendChild(row);
   });
@@ -860,30 +863,65 @@ function miniBtn(svg, fn){
   return b;
 }
 function moveItem(i, dir){
+  const arr = ensureMonthPeople();
   const j = i + dir;
-  if(j < 0 || j >= state.people.length) return;
-  const arr = state.people;
+  if(j < 0 || j >= arr.length) return;
   [arr[i], arr[j]] = [arr[j], arr[i]];
   save(); renderPeople();
 }
 function removeItem(i){
-  const p = state.people[i];
-  if(p.type !== "divider" && !confirm(`確定刪除「${p.name}」？此員工在所有月份的排班紀錄也會一併移除。`)) return;
+  const arr = ensureMonthPeople();
+  const p = arr[i];
+  if(p.type !== "divider" && !confirm(`確定在 ${curY} 年 ${curM} 月刪除「${p.name}」？\n只會移除本月的名單與排班，其他月份不受影響。`)) return;
   if(p.type !== "divider"){
-    // 清掉所有月份中該員工的資料
-    Object.values(state.data).forEach(b => { delete b[p.id]; });
+    const b = state.data[mKey(curY, curM)];   // 只清除「本月」該員工的排班
+    if(b) delete b[p.id];
   }
-  state.people.splice(i, 1);
+  arr.splice(i, 1);
   save(); renderPeople();
 }
 function addPerson(){
-  state.people.push({id:uid(), name:"新員工"});
+  ensureMonthPeople().push({id:uid(), name:"新員工"});
   save(); renderPeople();
   const inputs = $("#peopleList").querySelectorAll("input.rn");
   const last = inputs[inputs.length - 1];
-  if(last){ last.focus(); last.select(); last.scrollIntoView({block:"center"}); }
+  if(last){ last.focus(); last.select(); if(last.scrollIntoView) last.scrollIntoView({block:"center"}); }
 }
-function addDivider(){ state.people.push({id:uid(), type:"divider"}); save(); renderPeople(); }
+function addDivider(){ ensureMonthPeople().push({id:uid(), type:"divider"}); save(); renderPeople(); }
+
+/* ===== 每月獨立員工名單 =====
+   各月份可有自己的名單；未編輯過的月份自動沿用「最近的前一個月」，
+   再退回預設名單。編輯某月時才複製一份給該月（copy-on-write），
+   因此修改當月不會回頭影響過往月份。 */
+function monthIndex(y, m){ return y * 12 + (m - 1); }
+function inheritPeople(y, m){
+  const pm = state.peopleByMonth || {};
+  const target = monthIndex(y, m);
+  let best = null, bestIdx = -Infinity;
+  for(const k of Object.keys(pm)){
+    const parts = k.split("-");
+    const idx = monthIndex(+parts[0], +parts[1]);
+    if(idx < target && idx > bestIdx && Array.isArray(pm[k])){ bestIdx = idx; best = pm[k]; }
+  }
+  return best || state.people || [];
+}
+function peopleFor(y, m){
+  const pm = state.peopleByMonth || {};
+  const own = pm[mKey(y, m)];
+  return Array.isArray(own) ? own : inheritPeople(y, m);
+}
+// 目前顯示月份的名單（唯讀）
+function curPeople(){ return peopleFor(curY, curM); }
+// 取得可編輯的本月名單；第一次編輯時複製一份給本月（保留 id，排班資料不受影響）
+function ensureMonthPeople(){
+  if(!state.peopleByMonth) state.peopleByMonth = {};
+  const k = mKey(curY, curM);
+  if(!Array.isArray(state.peopleByMonth[k])){
+    state.peopleByMonth[k] = peopleFor(curY, curM).map(p =>
+      p.type === "divider" ? { id:p.id, type:"divider" } : { id:p.id, name:p.name });
+  }
+  return state.peopleByMonth[k];
+}
 
 /* ===== 匯出 / 匯入 ===== */
 function download(name, content, mime){
@@ -920,7 +958,7 @@ function exportCSV(){
   let head = ["員工"];
   for(let d = 1; d <= dim; d++){ head.push(`${d}(${WK[new Date(curY,curM-1,d).getDay()]})`); }
   const lines = [head.join(",")];
-  for(const p of state.people){
+  for(const p of curPeople()){
     if(p.type === "divider"){ lines.push(""); continue; }
     const cells = [csvSafe(p.name)];
     for(let d = 1; d <= dim; d++){
@@ -945,7 +983,7 @@ function buildScheduleCanvas(){
   const dim = daysInMonth(curY, curM);
   const s = 2;                                   // 2 倍解析度，圖片更清晰
   const pad = 18, nameW = 92, cellW = 42, cellH = 40, wkH = 24, dyH = 26, titleH = 58, legendH = 46;
-  const rows = state.people.map(p => ({ p, h: p.type === "divider" ? 14 : cellH }));
+  const rows = curPeople().map(p => ({ p, h: p.type === "divider" ? 14 : cellH }));
   const gridW = nameW + dim * cellW;
   const W = pad * 2 + gridW;
   const wkTop = pad + titleH, dyTop = wkTop + wkH, bodyTop = dyTop + dyH;
