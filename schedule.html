@@ -459,10 +459,9 @@ const CLOUD_KEY = "panda-shift-cloud-cfg-v1";
 let state = null;      // {version, brandSub, people:[{id,name}|{id,type:'divider'}], data:{'Y-M':{pid:{day:status}}}}
 let brush = "off";
 const now = new Date();
-// 開啟時預設顯示的月份（要改預設月份改這兩個數字）
-const DEFAULT_YEAR = 2026, DEFAULT_MONTH = 8;
-let curY = DEFAULT_YEAR;
-let curM = DEFAULT_MONTH;   // 1-12
+// 開啟時自動顯示「當前月份」的班表
+let curY = now.getFullYear();
+let curM = now.getMonth() + 1;   // 1-12
 let editable = false;       // 預設鎖定（檢視模式）；每次開啟都預設鎖定
 const EDIT_PW = "6666";     // 解鎖密碼
 
